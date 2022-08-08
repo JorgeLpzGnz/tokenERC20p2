@@ -7,12 +7,14 @@
 const hre = require("hardhat");
 
 async function main() {
-  const TheMetalorianDaoHolografico = await hre.ethers.getContractFactory('GeorgeToken')
-  const theMetalorianDaoHolografico = await TheMetalorianDaoHolografico.deploy()
 
-  await theMetalorianDaoHolografico.deployed()
+  const GeorgeToken = await hre.ethers.getContractFactory('GeorgeToken')
+  // const totalSupply = hre.ethers.BigNumber.from('10000000000000000000000000')
+  const georgeToken = await GeorgeToken.deploy()
 
-  console.log('deployed with supply: 10000000', theMetalorianDaoHolografico.address)
+  await georgeToken.deployed()
+
+  console.log('deployed addess:', georgeToken.address)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

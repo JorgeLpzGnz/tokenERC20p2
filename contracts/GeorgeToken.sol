@@ -13,7 +13,9 @@ contract GeorgeToken is ERC20 {
 
     event georgeCoinMinted( address indexed to, uint256 amount);
 
-    constructor () ERC20("GeorgeCoin", "GC") {
+    constructor (uint256 _amount) ERC20("GeorgeCoin", "GC") {
+
+        _mint(msg.sender, _amount);
 
         mintCost = 0.1 ether;
 
@@ -28,6 +30,12 @@ contract GeorgeToken is ERC20 {
         _mint(msg.sender, _amount);
 
         emit georgeCoinMinted(msg.sender, _amount);
+
+    }
+
+    function decimals() public view virtual override returns ( uint8 ) {
+
+        return 6;
 
     }
 

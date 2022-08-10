@@ -14,11 +14,11 @@ describe("GeorgeToken", function () {
 
     const [ owner, account ] = await ethers.getSigners()
 
-    const deploy = await GeorgeToken.deploy()
+    const initialSupply = 100000000
+
+    const deploy = await GeorgeToken.deploy(`${initialSupply}`)
 
     const mintCost = await deploy.mintCost()
-
-    const initialSupply = 10000
 
     const provider = ethers.provider
 
@@ -26,13 +26,21 @@ describe("GeorgeToken", function () {
 
   }
 
-  describe('Contract owner', async() => {
-    
+  describe('Contract creation', async() => {
+
     it('Owner must be contract creator', async() => {
 
       const { deploy, owner } = await loadFixture( deployConntract )
 
       expect( await deploy.owner()).to.equal( owner.address )
+
+    })
+
+    it('initial supply must be the correct', async() => {
+
+      const { deploy, initialSupply } = await loadFixture( deployConntract )
+
+      expect( await deploy.totalSupply()).to.equal( initialSupply )
 
     })
   })
@@ -45,7 +53,7 @@ describe("GeorgeToken", function () {
 
       await deploy.mintGeorgeCoin(initialSupply, { value: mintCost})
       
-      expect(await deploy.totalSupply()).to.equal(initialSupply)
+      expect(await deploy.totalSupply()).to.equal(initialSupply + initialSupply)
 
     })
 

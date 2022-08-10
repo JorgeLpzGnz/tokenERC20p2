@@ -3,124 +3,118 @@ const {
   loadFixture,
 } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
+const { waffle, ethers } = require("hardhat");
 const { expect } = require("chai");
 
-describe("Lock", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshopt in every test.
-  async function deployOneYearLockFixture() {
-    const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-    const ONE_GWEI = 1_000_000_000;
+describe("GeorgeToken", function () {
 
-    const lockedAmount = ONE_GWEI;
-    const unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
+  async function deployConntract(){
 
-    // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners();
+    const GeorgeToken = await ethers.getContractFactory('GeorgeToken')
 
-    const Lock = await ethers.getContractFactory("Lock");
-    const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+    const [ owner, account ] = await ethers.getSigners()
 
-    return { lock, unlockTime, lockedAmount, owner, otherAccount };
+    const deploy = await GeorgeToken.deploy()
+
+    const mintCost = await deploy.mintCost()
+
+    const initialSupply = 10000
+
+    const provider = ethers.provider
+
+    return { deploy, initialSupply, mintCost, owner, account, provider}
+
   }
 
-  describe("Deployment", function () {
-    it("Should set the right unlockTime", async function () {
-      const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
+  describe('Contract owner', async() => {
+    
+    it('Owner must be contract creator', async() => {
 
-      expect(await lock.unlockTime()).to.equal(unlockTime);
-    });
+      const { deploy, owner } = await loadFixture( deployConntract )
 
-    it("Should set the right owner", async function () {
-      const { lock, owner } = await loadFixture(deployOneYearLockFixture);
+      expect( await deploy.owner()).to.equal( owner.address )
 
-      expect(await lock.owner()).to.equal(owner.address);
-    });
+    })
+  })
 
-    it("Should receive and store the funds to lock", async function () {
-      const { lock, lockedAmount } = await loadFixture(
-        deployOneYearLockFixture
-      );
+  describe('mintGeorgeCoin', async() => {
 
-      expect(await ethers.provider.getBalance(lock.address)).to.equal(
-        lockedAmount
-      );
-    });
+    it('should mint more tokens', async() => {
 
-    it("Should fail if the unlockTime is not in the future", async function () {
-      // We don't use the fixture here because we want a different deployment
-      const latestTime = await time.latest();
-      const Lock = await ethers.getContractFactory("Lock");
-      await expect(Lock.deploy(latestTime, { value: 1 })).to.be.revertedWith(
-        "Unlock time should be in the future"
-      );
-    });
-  });
+      const { deploy, initialSupply, mintCost } = await loadFixture(deployConntract)
 
-  describe("Withdrawals", function () {
-    describe("Validations", function () {
-      it("Should revert with the right error if called too soon", async function () {
-        const { lock } = await loadFixture(deployOneYearLockFixture);
+      await deploy.mintGeorgeCoin(initialSupply, { value: mintCost})
+      
+      expect(await deploy.totalSupply()).to.equal(initialSupply)
 
-        await expect(lock.withdraw()).to.be.revertedWith(
-          "You can't withdraw yet"
-        );
-      });
+    })
 
-      it("Should revert with the right error if called from another account", async function () {
-        const { lock, unlockTime, otherAccount } = await loadFixture(
-          deployOneYearLockFixture
-        );
+    it('it should recive user ether', async() => {
 
-        // We can increase the time in Hardhat Network
-        await time.increaseTo(unlockTime);
+      const { deploy, mintCost, initialSupply, provider } = await loadFixture( deployConntract )
 
-        // We use lock.connect() to send a transaction from another account
-        await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
-          "You aren't the owner"
-        );
-      });
+      await deploy.mintGeorgeCoin( initialSupply, { value: mintCost })
 
-      it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-        const { lock, unlockTime } = await loadFixture(
-          deployOneYearLockFixture
-        );
+      const balance = await provider.getBalance( deploy.address )
 
-        // Transactions are sent using the first signer by default
-        await time.increaseTo(unlockTime);
+      expect( ethers.utils.formatEther(balance) ).to.equal( ethers.utils.formatEther(mintCost) )
 
-        await expect(lock.withdraw()).not.to.be.reverted;
-      });
-    });
+    })
 
-    describe("Events", function () {
-      it("Should emit an event on withdrawals", async function () {
-        const { lock, unlockTime, lockedAmount } = await loadFixture(
-          deployOneYearLockFixture
-        );
+    it('should emit a mint event', async() => {
 
-        await time.increaseTo(unlockTime);
+      const { deploy, initialSupply, mintCost, account } = await loadFixture( deployConntract )
+      
+      expect( await deploy.mintGeorgeCoin(initialSupply, { value: mintCost}))
 
-        await expect(lock.withdraw())
-          .to.emit(lock, "Withdrawal")
-          .withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
-      });
-    });
+          .to.emit(account.address, initialSupply)
 
-    describe("Transfers", function () {
-      it("Should transfer the funds to the owner", async function () {
-        const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-          deployOneYearLockFixture
-        );
+    })
 
-        await time.increaseTo(unlockTime);
+    it('should fail with diferent mint cost', async() => {
 
-        await expect(lock.withdraw()).to.changeEtherBalances(
-          [owner, lock],
-          [lockedAmount, -lockedAmount]
-        );
-      });
-    });
-  });
+      const { deploy, initialSupply} = await loadFixture( deployConntract )
+
+      await expect( deploy.mintGeorgeCoin( initialSupply ) ).to.be.revertedWith( 
+        'incorect value check mintCost' 
+        )
+
+    })
+
+  })
+
+  describe('Widthdraw', async() => {
+
+    it('It sholud fail when is not the owner', async() => {
+
+      const { deploy, account } = await loadFixture( deployConntract )
+
+      await expect( deploy.connect(account).withdraw() ).to.be.revertedWith( 'OnlyOwner Access' )
+
+    })
+
+    it('It sholud fail, Not Fonds To Tranfer', async() => {
+
+      const { deploy } = await loadFixture( deployConntract )
+
+      await expect( deploy.withdraw() ).to.be.revertedWith( 'Not founds to transfer' )
+
+    })
+
+    it('It sholud withdraw all the contract founds', async() => {
+
+      const { deploy, mintCost, initialSupply, provider } = await loadFixture( deployConntract )
+
+      await deploy.mintGeorgeCoin( initialSupply, { value: mintCost })
+
+      await deploy.withdraw()
+
+      const balance = await provider.getBalance( deploy.address )
+
+      expect( ethers.utils.formatEther(balance) ).to.equal( '0.0' )
+
+    })
+
+  })
+
 });

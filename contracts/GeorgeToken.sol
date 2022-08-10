@@ -23,7 +23,7 @@ contract GeorgeToken is ERC20 {
 
     function mintGeorgeCoin( uint256 _amount) external payable {
 
-        require(msg.value == mintCost);
+        require(msg.value == mintCost, 'incorect value check mintCost');
 
         _mint(msg.sender, _amount);
 
@@ -35,7 +35,7 @@ contract GeorgeToken is ERC20 {
 
         uint256 balace = address(this).balance;
 
-        require(balace > 0, 'insuficents found');
+        require(balace > 0, 'Not founds to transfer');
 
         payable(msg.sender).transfer(balace);
 
@@ -45,7 +45,7 @@ contract GeorgeToken is ERC20 {
 
     modifier onlyOwner{
 
-        require(msg.sender == owner);
+        require(msg.sender == owner, 'OnlyOwner Access');
 
         _;
 
